@@ -1,0 +1,13 @@
+ul {
+    list-style-type: none;
+    margin-left: 0;
+}
+.strong {
+    font-weight: bold;
+}
+.italics {
+    font-style: italic;
+}
+.adjustment{
+    margin-left:30px;
+}

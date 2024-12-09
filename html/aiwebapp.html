@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: skyblue;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #scoreboard {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #winScreen, #loseScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        #winScreen button, #loseScreen button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #fff;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="scoreboard">Score: 0 | Lives: 3</div>
+    <div id="winScreen">
+        <h1>You Win!</h1>
+        <button onclick="restartGame()">Restart</button>
+    </div>
+    <div id="loseScreen">
+        <h1>Game Over</h1>
+        <button onclick="restartGame()">Restart</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 1000; // Extend canvas width for a longer path
+        canvas.height = 400;
+
+        const gravity = 0.5;
+
+        const mario = {
+            x: 50,
+            y: canvas.height - 100,
+            width: 50,
+            height: 50,
+            color: 'red',
+            dy: 0,
+            isJumping: false,
+            isAlive: true,
+        };
+
+        const ground = {
+            x: 0,
+            y: canvas.height - 50,
+            width: canvas.width,
+            height: 50,
+            color: 'green',
+        };
+
+        const flagpole = {
+            x: 900, // Move flagpole further to match the longer path
+            y: ground.y - 100,
+            width: 10,
+            height: 100,
+            color: 'white',
+        };
+
+        const spikes = [
+            { x: 300, y: ground.y - 20, width: 30, height: 20 },
+            { x: 500, y: ground.y - 20, width: 30, height: 20 },
+        ];
+
+        const coins = [
+            { x: 200, y: ground.y - 60, width: 20, height: 20, collected: false },
+            { x: 450, y: ground.y - 60, width: 20, height: 20, collected: false },
+            { x: 700, y: ground.y - 60, width: 20, height: 20, collected: false },
+        ];
+
+        const enemies = [
+            { x: 400, y: ground.y - 50, width: 50, height: 50, color: 'brown', dx: 2, isAlive: true },
+            { x: 600, y: ground.y - 50, width: 50, height: 50, color: 'brown', dx: -2, isAlive: true },
+            { x: 800, y: ground.y - 50, width: 50, height: 50, color: 'brown', dx: 2, isAlive: true },
+        ];
+
+        let keys = {};
+        let gameWon = false;
+        let score = 0;
+        let lives = 3;
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        function drawMario() {
+            ctx.fillStyle = mario.color;
+            ctx.fillRect(mario.x, mario.y, mario.width, mario.height);
+        }
+
+        function drawGround() {
+            ctx.fillStyle = ground.color;
+            ctx.fillRect(ground.x, ground.y, ground.width, ground.height);
+        }
+
+        function drawFlagpole() {
+            ctx.fillStyle = flagpole.color;
+            ctx.fillRect(flagpole.x, flagpole.y, flagpole.width, flagpole.height);
+        }
+
+        function drawSpikes() {
+            spikes.forEach(spike => {
+                ctx.fillStyle = 'gray';
+                ctx.fillRect(spike.x, spike.y, spike.width, spike.height);
+            });
+        }
+
+        function drawEnemies() {
+            enemies.forEach(enemy => {
+                if (enemy.isAlive) {
+                    ctx.fillStyle = enemy.color;
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                }
+            });
+        }
+
+        function drawCoins() {
+            coins.forEach(coin => {
+                if (!coin.collected) {
+                    ctx.fillStyle = 'yellow';
+                    ctx.beginPath();
+                    ctx.arc(coin.x + coin.width / 2, coin.y + coin.height / 2, coin.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function updateMario() {
+            if (!mario.isAlive) return;
+
+            if (keys['ArrowRight']) mario.x += 5;
+            if (keys['ArrowLeft']) mario.x -= 5;
+
+            if (keys[' '] && !mario.isJumping) {
+                mario.dy = -10;
+                mario.isJumping = true;
+            }
+
+            mario.dy += gravity;
+            mario.y += mario.dy;
+
+            if (mario.y + mario.height >= ground.y) {
+                mario.y = ground.y - mario.height;
+                mario.dy = 0;
+                mario.isJumping = false;
+            }
+
+            if (mario.x < 0) mario.x = 0;
+            if (mario.x + mario.width > canvas.width) mario.x = canvas.width - mario.width;
+
+            if (
+                mario.x + mario.width >= flagpole.x &&
+                mario.y + mario.height >= flagpole.y
+            ) {
+                winGame();
+            }
+
+            spikes.forEach(spike => {
+                if (
+                    mario.x < spike.x + spike.width &&
+                    mario.x + mario.width > spike.x &&
+                    mario.y < spike.y + spike.height &&
+                    mario.y + mario.height > spike.y
+                ) {
+                    loseLife();
+                }
+            });
+
+            enemies.forEach(enemy => {
+                if (enemy.isAlive) {
+                    // If Mario lands on top of the enemy
+                    if (
+                        mario.dy > 0 &&
+                        mario.x + mario.width > enemy.x &&
+                        mario.x < enemy.x + enemy.width &&
+                        mario.y + mario.height > enemy.y &&
+                        mario.y + mario.height <= enemy.y + 10
+                    ) {
+                        enemy.isAlive = false;
+                        score += 100;
+                        updateScoreboard();
+                        mario.dy = -10; // Bounce Mario up
+                    } else if (
+                        mario.x < enemy.x + enemy.width &&
+                        mario.x + mario.width > enemy.x &&
+                        mario.y < enemy.y + enemy.height &&
+                        mario.y + mario.height > enemy.y
+                    ) {
+                        loseLife();
+                    }
+                }
+            });
+
+            coins.forEach(coin => {
+                if (
+                    mario.x < coin.x + coin.width &&
+                    mario.x + mario.width > coin.x &&
+                    mario.y < coin.y + coin.height &&
+                    mario.y + mario.height > coin.y &&
+                    !coin.collected
+                ) {
+                    coin.collected = true;
+                    score += 10;
+                    updateScoreboard();
+                }
+            });
+        }
+
+        function loseLife() {
+            lives -= 1;
+            updateScoreboard();
+
+            if (lives <= 0) {
+                loseGame();
+            } else {
+                restartMarioPosition();
+            }
+        }
+
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                if (enemy.isAlive) {
+                    enemy.x += enemy.dx;
+
+                    if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
+                        enemy.dx *= -1;
+                    }
+                }
+            });
+        }
+
+        function updateScoreboard() {
+            document.getElementById('scoreboard').innerText = `Score: ${score} | Lives: ${lives}`;
+        }
+
+        function winGame() {
+            gameWon = true;
+            document.getElementById('winScreen').style.display = 'block';
+        }
+
+        function loseGame() {
+            mario.isAlive = false;
+            document.getElementById('loseScreen').style.display = 'block';
+        }
+
+        function restartMarioPosition() {
+            mario.x = 50;
+            mario.y = canvas.height - 100;
+            mario.dy = 0;
+            mario.isJumping = false;
+        }
+
+        function restartGame() {
+            mario.x = 50;
+            mario.y = canvas.height - 100;
+            mario.dy = 0;
+            mario.isJumping = false;
+            mario.isAlive = true;
+
+            enemies.forEach(enemy => (enemy.isAlive = true));
+            coins.forEach(coin => (coin.collected = false));
+
+            score = 0;
+            lives = 3;
+            updateScoreboard();
+
+            document.getElementById('winScreen').style.display = 'none';
+            document.getElementById('loseScreen').style.display = 'none';
+
+            animate();
+        }
+
+        function animate() {
+            if (gameWon || lives <= 0) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGround();
+            drawMario();
+            drawFlagpole();
+            drawSpikes();
+            drawEnemies();
+            drawCoins();
+
+            updateMario();
+            updateEnemies();
+
+            requestAnimationFrame(animate);
+        }
+
+        updateScoreboard();
+        animate();
+    </script>
+</body>
+</html>
+
+ 
+
+ 
+ 

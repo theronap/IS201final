@@ -1,0 +1,35 @@
+body{
+    margin: 50px;
+    font-family:'Courier New', Courier, monospace;
+    background-color: aqua;
+}
+
+h1{
+    color:brown;
+    font-weight: bold;
+    
+}
+
+ul {
+    font-style: italic;
+}
+
+ol {
+    font-style: none;
+}
+
+.silly-goof {
+    text-decoration: none;
+}
+
+.silly-goof:hover {
+    text-decoration: underline;
+}
+
+.box-model {
+    background-color:aliceblue;
+    margin:20px;
+    border:5px;
+    padding:20px;
+    
+}
